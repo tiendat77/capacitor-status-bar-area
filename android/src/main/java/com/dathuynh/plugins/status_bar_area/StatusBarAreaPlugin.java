@@ -5,18 +5,113 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.util.WebColor;
 
 @CapacitorPlugin(name = "StatusBarArea")
 public class StatusBarAreaPlugin extends Plugin {
 
-    private StatusBarArea implementation = new StatusBarArea();
+    private StatusBarArea implementation;
+
+    @Override
+    public void load() {
+        implementation = new StatusBarArea(getActivity());
+    }
 
     @PluginMethod
-    public void echo(PluginCall call) {
-        String value = call.getString("value");
+    public void setStyle(final PluginCall call) {
+        final String style = call.getString("style");
+        if (style == null) {
+            call.reject("Style must be provided");
+            return;
+        }
 
-        JSObject ret = new JSObject();
-        ret.put("value", implementation.echo(value));
-        call.resolve(ret);
+        getBridge()
+            .executeOnMainThread(
+                () -> {
+                    implementation.setStyle(style);
+                    call.resolve();
+                }
+            );
     }
+
+    @PluginMethod
+    public void setBackgroundColor(final PluginCall call) {
+        final String color = call.getString("color");
+        if (color == null) {
+            call.reject("Color must be provided");
+            return;
+        }
+
+        getBridge()
+            .executeOnMainThread(
+                () -> {
+                    try {
+                        final int parsedColor = WebColor.parseColor(color.toUpperCase());
+                        implementation.setBackgroundColor(parsedColor);
+                        call.resolve();
+                    } catch (IllegalArgumentException ex) {
+                        call.reject("Invalid color provided. Must be a hex string (ex: #ff0000");
+                    }
+                }
+            );
+    }
+
+    @PluginMethod
+    public void hide(final PluginCall call) {
+        // Hide the status bar.
+        getBridge()
+            .executeOnMainThread(
+                () -> {
+                    implementation.hide();
+                    call.resolve();
+                }
+            );
+    }
+
+    @PluginMethod
+    public void show(final PluginCall call) {
+        // Show the status bar.
+        getBridge()
+            .executeOnMainThread(
+                () -> {
+                    implementation.show();
+                    call.resolve();
+                }
+            );
+    }
+
+    @PluginMethod
+    public void getHeight(final PluginCall call) {
+        int height = implementation.getHeight();
+
+        JSObject data = new JSObject();
+        data.put("height", height);
+        call.resolve(data);
+    }
+
+    @PluginMethod
+    public void getInfo(final PluginCall call) {
+        StatusBarAreaInfo info = implementation.getInfo();
+
+        JSObject data = new JSObject();
+        data.put("visible", info.isVisible());
+        data.put("style", info.getStyle());
+        data.put("color", info.getColor());
+        data.put("overlays", info.isOverlays());
+        data.put("height", info.getHeight());
+        call.resolve(data);
+    }
+
+    @PluginMethod
+    public void setOverlaysWebView(final PluginCall call) {
+        final Boolean overlays = call.getBoolean("overlay", true);
+        getBridge()
+            .executeOnMainThread(
+                () -> {
+                    implementation.setOverlaysWebView(overlays);
+                    call.resolve();
+                }
+            );
+    }
+
 }
